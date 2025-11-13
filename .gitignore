@@ -85,3 +85,7 @@ env/
 # Assignment 2
 assignment-2/data
 dev_env
+
+# Images
+*.png
+*.jpg
