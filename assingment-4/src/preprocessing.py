@@ -9,7 +9,7 @@ def preprocess_basic(image_path, save_dir, filename):
     """
     img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     img_resized = cv2.resize(img, (64, 64))                                     # Resize image to standardize image dimension, try different sizes during testing
-    img_normalized = img_resized.astype('float32') / 255.0
+    img_normalized = img_resized.astype('float32') / 255.0                      # Might change to: normalized = gray / 255.0 ()
     mean, std = img_normalized.mean(), img_normalized.std()
     if std > 0:
         img_standardized = (img_normalized - mean) / std
