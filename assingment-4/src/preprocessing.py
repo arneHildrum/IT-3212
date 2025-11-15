@@ -15,6 +15,7 @@ def preprocess_basic(image_path, save_dir, filename):
         img_standardized = (img_normalized - mean) / std
     else:
         img_standardized = img_normalized
+    
 
     save_path = os.path.join(save_dir, filename)
     cv2.imwrite(save_path, (img_standardized * 255).astype(np.uint8))
