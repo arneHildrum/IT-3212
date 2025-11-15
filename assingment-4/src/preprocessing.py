@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 
-def preprocess_basic(image_path):
+def preprocess_basic(image_path, save_dir, filename):
     """
     Preprocessing for a basic ML model
     """
@@ -16,13 +16,12 @@ def preprocess_basic(image_path):
     else:
         img_standardized = img_normalized
 
-    filename = os.path.basename(image_path)
-    save_path = os.path.join(image_path, filename)
+    save_path = os.path.join(save_dir, filename)
     cv2.imwrite(save_path, (img_standardized * 255).astype(np.uint8))
 
 
 
-def preprocess_advanced(image_path):
+def preprocess_advanced(image_path, save_dir, filename):
     """
     Preprocessing for an advanced ML model
     """
@@ -35,12 +34,11 @@ def preprocess_advanced(image_path):
     else:
         img_standardized = img_normalized
 
-    filename = os.path.basename(image_path)
-    save_path = os.path.join(image_path, filename)
+    save_path = os.path.join(save_dir, filename)
     cv2.imwrite(save_path, (img_standardized * 255).astype(np.uint8))
 
 
-def preprocess_CNN(image_path):
+def preprocess_CNN(image_path, save_dir, filename):
     """
     Preprocessing for a CNN model
     """
@@ -57,8 +55,7 @@ def preprocess_CNN(image_path):
     M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1)
     img_augmented = cv2.warpAffine(img_normalized, M, (w, h))
  
-    filename = os.path.basename(image_path)
-    save_path = os.path.join(image_path, filename)
+    save_path = os.path.join(save_dir, filename)
     cv2.imwrite(save_path, (img_augmented * 255).astype(np.uint8))
 
 
@@ -97,34 +94,37 @@ def main():
                         subpath = f"..\\data\\preprocessed_basic\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
-                        for filename in os.listdir(path):
+                        source_path = f"..\\data\\images\\{i}"
+                        for filename in os.listdir(source_path):
                             if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
-                                image_path = os.path.join(path, filename)
-                                preprocess_basic(image_path)
+                                image_path = os.path.join(source_path, filename)
+                                preprocess_basic(image_path, subpath, filename)
                 case 2:
                     path = "..\\data\\preprocessed_advanced"
                     if not os.path.exists(path):
                             os.makedirs(path, exist_ok=True)
-                    for i in range(0, 18):
+                    for i in range(0, 19):
                         subpath = f"..\\data\\preprocessed_advanced\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
-                        for filename in os.listdir(path):
+                        source_path = f"..\\data\\images\\{i}"
+                        for filename in os.listdir(source_path):
                             if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
-                                image_path = os.path.join(path, filename)
-                                preprocess_advanced(image_path)
+                                image_path = os.path.join(source_path, filename)
+                                preprocess_advanced(image_path, subpath, filename)
                 case 3:
                     path = "..\\data\\preprocessed_CNN"
                     if not os.path.exists(path):
                             os.makedirs(path, exist_ok=True)
-                    for i in range(0, 18):
+                    for i in range(0, 19):
                         subpath = f"..\\data\\preprocessed_CNN\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
-                        for filename in os.listdir(path):
+                        source_path = f"..\\data\\images\\{i}"
+                        for filename in os.listdir(source_path):
                             if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
-                                image_path = os.path.join(path, filename)
-                                preprocess_CNN(image_path)
+                                image_path = os.path.join(source_path, filename)
+                                preprocess_CNN(image_path, subpath, filename)
 
                     
 
