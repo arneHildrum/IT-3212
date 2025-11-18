@@ -1,3 +1,7 @@
+"""
+Feature extraction: clean + standardize + t-SNE embeddings.
+Prerequisite: data.csv present; sklearn installed. No other scripts required.
+"""
 import inspect
 from pathlib import Path
 from typing import Optional
@@ -10,13 +14,13 @@ from preprocessing import clean_data, standardize_data
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 RAW_DATA_PATH = DATA_DIR / "data.csv"
-TSNE_OUTPUT_PATH = DATA_DIR / "dataTSNE.csv"
+TSNE_OUTPUT_PATH = DATA_DIR / "dataTSNE_p50.csv"
 
 
 def tsne_embedding(
     df: pd.DataFrame,
     n_components: int = 2,
-    perplexity: float = 30,
+    perplexity: float = 50,
     learning_rate: float | str = "auto",
     n_iter: int = 1000,
     random_state: int = 42,
