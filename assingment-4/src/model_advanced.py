@@ -1,20 +1,25 @@
 import os
 import cv2
-import numpy as np
-from sklearn.svm import SVC
 from skimage.feature import hog
 from skimage.feature import local_binary_pattern
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import classification_report, accuracy_score
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import VotingClassifier
+# The base models used in the slides' ensemble example:
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
 
-
+# ----------------------------------------------------------------------
+# 1. Setup: Create Dummy Data for demonstration
+#    (Replace this section with the output from your preprocessing function)
+# ----------------------------------------------------------------------
+# A dataset of 144 total samples (18 persons * 8 expressions).
+# Assuming a feature vector size of 100 for each image.
 def load_data_fer():
     X = []
     y = []
-
-    data_dir = "../data/preprocessed_basic_fer"
+    data_dir = "../data/preprocessed_advanced_fer"
     for i in range(0, 19):
         folder = os.path.join(data_dir, str(i))
         for filename in os.listdir(folder):
@@ -51,6 +56,7 @@ def load_data_vtr():
     return np.array(X), np.array(y)
 
 
+
 def extract_hog(img):
     """
     Extract HOG (Histogram of Oriented Gradients) features.
@@ -79,7 +85,16 @@ def extract_hlbp(img, P=8, R=1, bins=256):
     return hist
 
 
-def train_svm(kernel="rbf", gamma="scale", n_components=0.95):
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# 2. Model Script (Code from Slide 8)
+# ----------------------------------------------------------------------
+
+# Define the two base models used in the ensemble
+# model1 = LogisticRegression(random_state=1) [cite: 906]
+def train_voting_classifier():
+
     task = 0
     while task != 1 and task != 2:
         task = int(input("1 to train model on facial emotion data set, 2 for vehicle type data set: "))
@@ -89,46 +104,34 @@ def train_svm(kernel="rbf", gamma="scale", n_components=0.95):
         X, y = load_data_vtr()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-    if n_components != 0: pca = PCA(n_components=n_components, random_state=42)
-    else:                     pca = PCA(random_state=42)
-    X_train_pca = pca.fit_transform(X_train)
-    X_test_pca = pca.transform(X_test)
+    model1 = LogisticRegression(random_state=1, max_iter=1000)
 
-    svm = SVC(
-        kernel=kernel,
-        C=0.1,
-        gamma=gamma
+    # model2 = tree.DecisionTreeClassifier(random_state=1) [cite: 906]
+    model2 = DecisionTreeClassifier(random_state=1)
+
+    # Create the Voting Classifier model
+    # voting='hard' means Max Voting (winner-takes-all) 
+    model = VotingClassifier(
+        estimators=[('lr', model1), ('dt', model2)], 
+        voting='hard'
     )
-    param_grid = {
-        'C': [0.1, 1, 10, 100],              # Regularization parameter
-        'gamma': ['scale', 'auto', 0.1, 1],  # Kernel coefficient
-        'kernel': ['rbf', 'linear', 'poly']  # Kernel type
-    }
-    grid_search = GridSearchCV(
-        estimator=svm,
-        param_grid=param_grid,
-        cv=5,
-        scoring='accuracy',
-        n_jobs=-1, 
-        verbose=2
-    )
-    grid_search.fit(X_train_pca, y_train)
-#    svm.fit(X_train_pca, y_train)
-    best_svm = grid_search.best_estimator_
-    y_pred = best_svm.predict(X_test_pca)
-#    y_pred = svm.predict(X_test_pca)
 
-    print(classification_report(y_test, y_pred))
-    print(f"Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%")
+    # Train the ensemble model
+    # model.fit(x_train,y_train) [cite: 908]
+    print("\nFitting Voting Classifier...")
+    model.fit(X_train, y_train)
 
+    print(f"Training samples: {len(X_train)}")
+    print(f"Testing samples: {len(X_test)}")
 
-def main():
-    component = int(input("PCA components? 0 for none, write percentage (e.g., 95): "))
-    train_svm("rbf", "scale", component / 100 if component != 0 else 0)
+    # Evaluate the model
+    # model.score(x_test,y_test) [cite: 909]
+    accuracy = model.score(X_test, y_test)
+    print(f"Model Score (Accuracy): {accuracy:.4f}")
 
+# You can also make predictions:
+# predictions = model.predict(X_test)
+# print(f"First 5 predictions: {predictions[:5]}")
 
 if __name__ == "__main__":
-    main()
+    train_voting_classifier()

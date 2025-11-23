@@ -63,7 +63,7 @@ def preprocess_CNN(image_path, save_dir, filename):
 def main():
     task = 100
     while task != 0:
-        task = int(input("0 to stop, 1 for basic, 2 for advanced, 3 for CNN...\nEnter task number (0-3): "))
+        task = int(input("0 to stop, 1 for basic fer, 2 for advanced fer, 3 for CNN fer, 4 for basic vtr, 5 for advanced vtr, 6 for CNN vtr...\nEnter task number (0-6): "))
         if task == 0:
             print("Shutting down program.......")
         #else:
@@ -88,24 +88,25 @@ def main():
         else:
             match task:
                 case 1:
-                    path = "..\\data\\preprocessed_basic"
+                    path = "..\\data\\preprocessed_basic_fer"
                     if not os.path.exists(path):
                             os.makedirs(path, exist_ok=True)
                     for i in range(0, 19):
-                        subpath = f"..\\data\\preprocessed_basic\\{i}"
+                        subpath = f"..\\data\\preprocessed_basic_fer\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
                         source_path = f"..\\data\\images\\{i}"
                         for filename in os.listdir(source_path):
                             if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
                                 image_path = os.path.join(source_path, filename)
+                                print(image_path)
                                 preprocess_basic(image_path, subpath, filename)
                 case 2:
-                    path = "..\\data\\preprocessed_advanced"
+                    path = "..\\data\\preprocessed_advanced_fer"
                     if not os.path.exists(path):
                             os.makedirs(path, exist_ok=True)
                     for i in range(0, 19):
-                        subpath = f"..\\data\\preprocessed_advanced\\{i}"
+                        subpath = f"..\\data\\preprocessed_advanced_fer\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
                         source_path = f"..\\data\\images\\{i}"
@@ -114,11 +115,11 @@ def main():
                                 image_path = os.path.join(source_path, filename)
                                 preprocess_advanced(image_path, subpath, filename)
                 case 3:
-                    path = "..\\data\\preprocessed_CNN"
+                    path = "..\\data\\preprocessed_CNN_fer"
                     if not os.path.exists(path):
                             os.makedirs(path, exist_ok=True)
                     for i in range(0, 19):
-                        subpath = f"..\\data\\preprocessed_CNN\\{i}"
+                        subpath = f"..\\data\\preprocessed_CNN_fer\\{i}"
                         if not os.path.exists(subpath):
                             os.makedirs(subpath, exist_ok=True)
                         source_path = f"..\\data\\images\\{i}"
@@ -126,6 +127,77 @@ def main():
                             if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
                                 image_path = os.path.join(source_path, filename)
                                 preprocess_CNN(image_path, subpath, filename)
+                case 4:
+                    path = "..\\data\\preprocessed_basic_vtr"
+                    if not os.path.exists(path):
+                        os.makedirs(path, exist_ok=True)
+                        
+                    subpath = os.path.join(path, "r7bthvstxw-1")
+                    if not os.path.exists(subpath):
+                        os.makedirs(subpath, exist_ok=True)
+                        
+                    source_path = f"..\\data\\r7bthvstxw-1"
+                    if not os.path.exists(source_path):
+                        print(f"Source directory not found: {source_path}")
+                    else:
+                        for folder in os.listdir(source_path):
+                            sub_source_path = os.path.join(source_path, folder)
+                            subsubpath = os.path.join(subpath, folder)
+                            if not os.path.exists(subsubpath):
+                                os.makedirs(subsubpath, exist_ok=True)
+                            for filename in os.listdir(sub_source_path):
+                                if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
+                                    image_path = os.path.join(sub_source_path, filename)
+                                    preprocess_basic(image_path, subsubpath, filename)
+
+                case 5:
+                    path = "..\\data\\preprocessed_advanced_vtr"
+                    if not os.path.exists(path):
+                        os.makedirs(path, exist_ok=True)
+                        
+                    subpath = os.path.join(path, "r7bthvstxw-1")
+                    if not os.path.exists(subpath):
+                        os.makedirs(subpath, exist_ok=True)
+                        
+                    source_path = f"..\\data\\r7bthvstxw-1"
+                    if not os.path.exists(source_path):
+                        print(f"Source directory not found: {source_path}")
+                    else:
+                        for folder in os.listdir(source_path):
+                            sub_source_path = os.path.join(source_path, folder)
+                            subsubpath = os.path.join(subpath, folder)
+                            if not os.path.exists(subsubpath):
+                                os.makedirs(subsubpath, exist_ok=True)
+                            for filename in os.listdir(sub_source_path):
+                                if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
+                                    image_path = os.path.join(sub_source_path, filename)
+                                    preprocess_advanced(image_path, subsubpath, filename)
+                            
+                case 6:
+                    path = "..\\data\\preprocessed_CNN_vtr"
+                    if not os.path.exists(path):
+                        os.makedirs(path, exist_ok=True)
+                        
+                    subpath = os.path.join(path, "r7bthvstxw-1")
+                    if not os.path.exists(subpath):
+                        os.makedirs(subpath, exist_ok=True)
+                        
+                    source_path = f"..\\data\\r7bthvstxw-1"
+                    if not os.path.exists(source_path):
+                        print(f"Source directory not found: {source_path}")
+                    else:
+                        for folder in os.listdir(source_path):
+                            sub_source_path = os.path.join(source_path, folder)
+                            subsubpath = os.path.join(subpath, folder)
+                            if not os.path.exists(subsubpath):
+                                os.makedirs(subsubpath, exist_ok=True)
+                            for filename in os.listdir(sub_source_path):
+                                if filename.lower().endswith(".jpg") or filename.lower().endswith(".png"):
+                                    image_path = os.path.join(sub_source_path, filename)
+                                    preprocess_CNN(image_path, subsubpath, filename)
+                
+                case _:
+                    print("Invalid task number.")
 
                     
 
