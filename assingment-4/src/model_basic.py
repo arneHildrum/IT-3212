@@ -93,7 +93,7 @@ def train_svm(kernel="rbf", gamma="scale", n_components=0.95):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     if n_components != 0: pca = PCA(n_components=n_components, random_state=42)
-    else:                     pca = PCA(random_state=42)
+    else:                 pca = PCA(random_state=42)
     X_train_pca = pca.fit_transform(X_train)
     X_test_pca = pca.transform(X_test)
 

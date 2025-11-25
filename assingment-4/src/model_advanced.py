@@ -3,10 +3,13 @@ import cv2
 from skimage.feature import hog
 from skimage.feature import local_binary_pattern
 import numpy as np
-import pandas as pd
+from sklearn.svm import SVC
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import VotingClassifier
-# The base models used in the slides' ensemble example:
+from sklearn.ensemble import VotingClassifier, RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 
@@ -93,7 +96,7 @@ def extract_hlbp(img, P=8, R=1, bins=256):
 
 # Define the two base models used in the ensemble
 # model1 = LogisticRegression(random_state=1) [cite: 906]
-def train_voting_classifier():
+def train_voting_classifier(n_components=0.95):
 
     task = 0
     while task != 1 and task != 2:
@@ -104,34 +107,75 @@ def train_voting_classifier():
         X, y = load_data_vtr()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    if n_components != 0: pca = PCA(n_components=n_components, random_state=42)
+    else:                 pca = PCA(random_state=42)
+    X_train_pca = pca.fit_transform(X_train)
+    X_test_pca = pca.transform(X_test)
+
     model1 = LogisticRegression(random_state=1, max_iter=1000)
 
-    # model2 = tree.DecisionTreeClassifier(random_state=1) [cite: 906]
     model2 = DecisionTreeClassifier(random_state=1)
 
-    # Create the Voting Classifier model
-    # voting='hard' means Max Voting (winner-takes-all) 
-    model = VotingClassifier(
-        estimators=[('lr', model1), ('dt', model2)], 
-        voting='hard'
+    model3 = SVC(
+        kernel="rbf",
+        C=1.0,
+        gamma="scale",
+        probability=True,
+        random_state=1
     )
 
-    # Train the ensemble model
-    # model.fit(x_train,y_train) [cite: 908]
+    model4 = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=None,
+        random_state=1
+    )
+
+    model5 = KNeighborsClassifier(
+        n_neighbors=5,
+        weights="distance"
+    )
+
+    model6 = MLPClassifier(
+        hidden_layer_sizes=(128,),
+        max_iter=500,
+        random_state=1
+    )
+
+    model = VotingClassifier(
+        estimators=[
+#            ('lr', model1), 
+#            ('dt', model2), 
+            ('svm', model3),
+            ('rf', model4),
+            ('knn', model5),
+#            ('mlp', model6)
+        ], 
+        voting='soft'
+    )
+    
     print("\nFitting Voting Classifier...")
-    model.fit(X_train, y_train)
+    model.fit(X_train_pca, y_train)
 
-    print(f"Training samples: {len(X_train)}")
-    print(f"Testing samples: {len(X_test)}")
+    print(f"Training samples: {len(X_train_pca)}")
+    print(f"Testing samples: {len(X_test_pca)}")
 
-    # Evaluate the model
-    # model.score(x_test,y_test) [cite: 909]
-    accuracy = model.score(X_test, y_test)
-    print(f"Model Score (Accuracy): {accuracy:.4f}")
+    #print(classification_report(y_test, y_pred))
+    #print(f"Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%")
+
+    accuracy = model.score(X_test_pca, y_test)
+    print(f"Model Score (Accuracy): {accuracy * 100:.4f}%")
 
 # You can also make predictions:
 # predictions = model.predict(X_test)
 # print(f"First 5 predictions: {predictions[:5]}")
 
+def main():
+    component = int(input("PCA components? 0 for none, write percentage (e.g., 95): "))
+    train_voting_classifier(component / 100 if component != 0 else 0)
+
+
 if __name__ == "__main__":
-    train_voting_classifier()
+    main()
