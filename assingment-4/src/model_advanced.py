@@ -13,18 +13,13 @@ from sklearn.ensemble import VotingClassifier, RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
 
-# ----------------------------------------------------------------------
-# 1. Setup: Create Dummy Data for demonstration
-#    (Replace this section with the output from your preprocessing function)
-# ----------------------------------------------------------------------
-# A dataset of 144 total samples (18 persons * 8 expressions).
-# Assuming a feature vector size of 100 for each image.
+
 def load_data_fer():
     X = []
     y = []
     data_dir = "../data/preprocessed_advanced_fer"
     for i in range(0, 19):
-        folder = os.path.join(data_dir, str(i))
+        folder = os.path.normpath(data_dir, str(i))
         for filename in os.listdir(folder):
             if filename.endswith(".jpg"):
                 img_path = os.path.join(folder, filename)
