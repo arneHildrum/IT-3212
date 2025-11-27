@@ -1,133 +1,250 @@
+import os
+import cv2
+import data_loader
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.optimizers import Adam
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
+from skimage.feature import local_binary_pattern, hog
 
-# --------------------------------------------------------------------------------
-# 1. Configuration & Constants
-# --------------------------------------------------------------------------------
-IMAGE_SIZE = 128 # Matching your preprocess_CNN function output
-CHANNELS = 3     # RGB images
-NUM_CLASSES = 8  # 8 facial expressions
+# -------------------------------------------------------
+# Constants
+# -------------------------------------------------------
+CHANNELS = 3
+NUM_CLASSES = 8
 BATCH_SIZE = 32
-EPOCHS = 30 # A reasonable number for initial training
+EPOCHS = 20
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# --------------------------------------------------------------------------------
-# 2. Setup: Create Dummy Data (Replace with your actual data loading)
-# --------------------------------------------------------------------------------
-# In a real scenario, you would load and process your 18*8 images here.
-# The expected shape after loading and augmentation is (N_samples, 128, 128, 3).
-N_SAMPLES = 144
-X = np.random.rand(N_SAMPLES, IMAGE_SIZE, IMAGE_SIZE, CHANNELS).astype('float32')
-# Dummy labels for 8 expressions (0 to 7)
-y_raw = np.random.randint(0, NUM_CLASSES, N_SAMPLES)
 
-# Convert labels to one-hot encoding (required for multi-class classification)
-lb = LabelBinarizer()
-y_one_hot = lb.fit_transform(y_raw)
 
-# Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y_one_hot, test_size=0.2, random_state=42, stratify=y_raw
-)
 
-print(f"X_train shape: {X_train.shape}")
-print(f"y_train shape: {y_train.shape}")
-# --------------------------------------------------------------------------------
 
-# --------------------------------------------------------------------------------
-# 3. Define the CNN Model Architecture
-#    (Based on principles from the IT3212 Deep Learning slides)
-# --------------------------------------------------------------------------------
 
-def create_cnn_model(input_shape, num_classes):
-    """
-    Creates a Sequential CNN model for image classification.
-    """
-    model = Sequential([
-        # --- Layer 1: Convolutional Block ---
-        # Conv2D: Learns spatial features (edges, corners, etc.)
-        # Activation: ReLU is a common choice for hidden layers (Slide 15)
-        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape, padding='same', name='conv_1'),
-        # MaxPooling2D: Reduces spatial dimensions (downsampling) (Slide 17)
-        MaxPooling2D((2, 2), name='pool_1'),
+
+class CNN(nn.Module):
+        def __init__(self, num_classes=NUM_CLASSES):
+            super(CNN, self).__init__()
+            
+            self.model = nn.Sequential(
+                # Conv Block 1
+                nn.Conv2d(CHANNELS, 32, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2),
+
+                # Conv Block 2
+                nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2),
+
+                # Conv Block 3
+                nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(2),
+
+                nn.Flatten(),
+                nn.Linear(128 * 16 * 16, 512),
+                nn.ReLU(),
+                nn.Dropout(0.5),
+                nn.Linear(512, num_classes),
+                nn.Softmax(dim=1)
+            )
         
-        # --- Layer 2: Convolutional Block ---
-        Conv2D(64, (3, 3), activation='relu', padding='same', name='conv_2'),
-        MaxPooling2D((2, 2), name='pool_2'),
-        
-        # --- Layer 3: Convolutional Block ---
-        Conv2D(128, (3, 3), activation='relu', padding='same', name='conv_3'),
-        MaxPooling2D((2, 2), name='pool_3'),
+        def forward(self, x):
+            return self.model(x)
 
-        # --- Transition to Fully Connected Layers ---
-        # Flatten: Converts 3D feature maps into a 1D vector for the Dense layers
-        Flatten(name='flatten'),
+
+
+
+
+
+
+
+class DataFinder:
+    def load_data_fer(data_dir, self):
+        X = []
+        y = []
+
+        for i in range(0, 19):
+            folder = os.path.join(data_dir, str(i))
+            for filename in os.listdir(folder):
+                if filename.endswith(".jpg"):
+                    img_path = os.path.join(folder, filename)
+                    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                    task = 0
+                    while task != 1 and task != 2:
+                        task = int(input("1 for HOG, 2 for HLBP, 3 for flattened: "))
+                    match task:
+                        case 1:     features = self.extract_hog(img)
+                        case 2:     features = self.extract_hlbp(img)
+                        case 3:     features = img.flatten()
+                    X.append(features)
+                    label = os.path.splitext(filename)[0]
+                    y.append(label)
+
+        return np.array(X), np.array(y)
+
+
+    def load_data_vtr(data_dir, self):
+        X = []
+        y = []
+
+        for vehicle_type in os.listdir(data_dir):
+            folder = os.path.join(data_dir, vehicle_type)
+            for filename in os.listdir(folder):
+                if filename.endswith(".jpg"):
+                    img_path = os.path.join(folder, filename)
+                    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                    task = 0
+                    while task != 1 and task != 2:
+                        task = int(input("1 for HOG, 2 for HLBP, 3 for flattened: "))
+                    match task:
+                        case 1:     features = self.extract_hog(img)
+                        case 2:     features = self.extract_hlbp(img)
+                        case 3:     features = img.flatten()
+                    X.append(features)
+                    y.append(vehicle_type)
         
-        # --- Fully Connected (Dense) Layers ---
-        # Dense: Standard classification layers (Slide 20)
-        Dense(512, activation='relu', name='dense_1'),
-        # Dropout: Regularization technique to prevent overfitting (Slide 28)
-        Dropout(0.5, name='dropout_1'),
-        
-        # --- Output Layer ---
-        # Dense: Output layer must match the number of classes (8 expressions)
-        # Activation: 'softmax' for multi-class classification (Slide 15)
-        Dense(num_classes, activation='softmax', name='output_layer')
-    ])
+        return np.array(X), np.array(y)
+
+
+
+    def extract_hog(img):
+        """
+        Extract HOG (Histogram of Oriented Gradients) features.
+        Input:  grayscale image (numpy array)
+        Output: 1D feature vector
+        """
+        features = hog(
+            img,
+            orientations=9,
+            pixels_per_cell=(8, 8),
+            cells_per_block=(2, 2),
+            block_norm='L2-Hys',
+            transform_sqrt=True
+        )
+        return features
+
+
+    def extract_hlbp(img, P=8, R=1, bins=256):
+        """
+        Extract HLBP (Histogram of Local Binary Patterns)
+        Input:  grayscale image (numpy array)
+        Output: 1D histogram feature vector
+        """
+        lbp = local_binary_pattern(img, P=P, R=R, method='uniform')
+        hist, _ = np.histogram(lbp.ravel(), bins=bins, range=(0, bins), density=True)
+        return hist
+
+
+
+
+
+
+
+
+
+
+
+
+def main():
     
-    return model
+    data = DataFinder()
+    task = 0
+    while task != 1 and task != 2:
+        task = int(input("1 to train model on facial emotion data set, 2 for vehicle type data set: "))
+    if task == 1:
+        X, y = data.load_data_fer("../data/preprocessed_CNN_vtr/r7bthvstxw-1")
+    else:
+        X, y = data.load_data_vtr("../data/preprocessed_CNN_vtr/r7bthvstxw-1")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-# Create and compile the model
-input_shape = (IMAGE_SIZE, IMAGE_SIZE, CHANNELS)
-model = create_cnn_model(input_shape, NUM_CLASSES)
+    # Convert to PyTorch tensors
+    X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+    y_train_tensor = torch.tensor(y_train, dtype=torch.float32)
 
-# Model Compilation
-# Loss: 'categorical_crossentropy' for one-hot encoded multi-class labels
-# Optimizer: Adam is a strong general-purpose choice
-model.compile(
-    optimizer=Adam(learning_rate=0.001),
-    loss='categorical_crossentropy',
-    metrics=['accuracy']
-)
+    X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+    y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
-# Display the model summary (showing layer types and parameter count)
-print("\n--- Model Summary ---")
-model.summary()
+    # Data loaders
+    train_loader = DataLoader(
+        TensorDataset(X_train_tensor, y_train_tensor),
+        batch_size=BATCH_SIZE,
+        shuffle=True
+    )
 
-# --------------------------------------------------------------------------------
-# 4. Model Training
-# --------------------------------------------------------------------------------
-print("\n--- Starting Model Training ---")
+    test_loader = DataLoader(
+        TensorDataset(X_test_tensor, y_test_tensor),
+        batch_size=BATCH_SIZE,
+        shuffle=False
+    )
 
-# Train the model using the training data
-history = model.fit(
-    X_train, y_train,
-    epochs=EPOCHS,
-    batch_size=BATCH_SIZE,
-    validation_split=0.1, # Use 10% of training data for validation during training
-    verbose=1
-)
+    # Initialize model
+    model = CNN().to(DEVICE)
 
-# --------------------------------------------------------------------------------
-# 5. Model Evaluation
-# --------------------------------------------------------------------------------
-print("\n--- Evaluating Model on Test Data ---")
-loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    # Loss & optimizer
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-print(f"\nTest Loss: {loss:.4f}")
-print(f"Test Accuracy: {accuracy*100:.2f}%")
+    train(model, train_loader, criterion, optimizer)
+    evaluate(model, test_loader)
 
-# Example Prediction
-sample_image = X_test[0:1]
-predictions = model.predict(sample_image)
-predicted_class = np.argmax(predictions[0])
 
-# Note: The true label will be in one-hot format, e.g., [0, 0, 1, 0, 0, 0, 0, 0]
-true_class = np.argmax(y_test[0])
+# -------------------------------------------------------
+# Training Loop
+# -------------------------------------------------------
+def train(model, train_loader, criterion, optimizer):
+    model.train()
+    for epoch in range(EPOCHS):
+        total_loss = 0
 
-print(f"Prediction for first test image: Class {predicted_class}")
-print(f"True Label for first test image: Class {true_class}")
+        for X_batch, y_batch in train_loader:
+            X_batch = X_batch.to(DEVICE)
+            y_batch = y_batch.to(DEVICE)
+
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+
+            # Convert one-hot → class indices
+            y_labels = torch.argmax(y_batch, dim=1)
+
+            loss = criterion(outputs, y_labels)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+
+        print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {total_loss:.4f}")
+
+
+# -------------------------------------------------------
+# Evaluation
+# -------------------------------------------------------
+def evaluate(model, test_loader):
+    model.eval()
+    correct = 0
+    total = 0
+    
+    with torch.no_grad():
+        for X_batch, y_batch in test_loader:
+            X_batch = X_batch.to(DEVICE)
+            y_batch = y_batch.to(DEVICE)
+
+            outputs = model(X_batch)
+            predicted = torch.argmax(outputs, dim=1)
+            labels = torch.argmax(y_batch, dim=1)
+
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print(f"\nTest Accuracy: {100 * correct / total:.2f}%")
+    
+
+# -------------------------------------------------------
+# Run training and evaluation
+# -------------------------------------------------------
+if __name__ == "__main__":
+    main()
