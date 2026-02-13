@@ -1,91 +1,123 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler, OneHotEncoder, PowerTransformer
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.decomposition import PCA
+
+from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.mixture import GaussianMixture
-from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
+from sklearn.metrics import silhouette_score, calinski_harabasz_score
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
-df = pd.read_csv('../data/smoking_driking_dataset_Ver01.csv')
+df = pd.read_csv('../data/Tetuan_City_power_consumption.csv')
 
-numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-categorical_features = df.select_dtypes(exclude=[np.number]).columns.tolist()
 
-# Preprocessing pipelines
-numeric_transformer = Pipeline([
-    ('imputer', SimpleImputer(strategy='median')),
-    ('power', PowerTransformer(method='yeo-johnson')),
-    ('scaler', StandardScaler())
-])
+# Parse datetime
+df["DateTime"] = pd.to_datetime(df["DateTime"])
 
-categorical_transformer = Pipeline([
-    ('imputer', SimpleImputer(strategy='most_frequent')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore'))
-])
+# Extract time features
+df["Hour"] = df["DateTime"].dt.hour
+df["Month"] = df["DateTime"].dt.month
+df["Weekday"] = df["DateTime"].dt.weekday
 
-preprocessor = ColumnTransformer([
-    ('num', numeric_transformer, numeric_features),
-    ('cat', categorical_transformer, categorical_features)
-])
+# Drop original datetime
+df = df.drop(columns=["DateTime"])
+
+# Handle missing values
+df = df.interpolate()
+
+# --------------------------
+# 2. FEATURE ENGINEERING
+# --------------------------
+
+# Interaction features
+df["Power_Sum"] = df[["Zone 1 Power Consumption",
+                      "Zone 2  Power Consumption",
+                      "Zone 3  Power Consumption"]].sum(axis=1)
+
+df["Power_Std"] = df[["Zone 1 Power Consumption",
+                      "Zone 2  Power Consumption",
+                      "Zone 3  Power Consumption"]].std(axis=1)
+
+df["Power_Ratio12"] = df["Zone 1 Power Consumption"] / (
+                       df["Zone 2  Power Consumption"] + 1e-6)
+
+# --------------------------
+# 3. FEATURE SELECTION
+# --------------------------
 
 # Remove near-zero variance features
-pipeline = Pipeline([
-    ('preprocessor', preprocessor),
-    ('variance', VarianceThreshold(threshold=0.01))
-])
+vt = df.loc[:, df.var() > 1e-6]
 
-# Apply preprocessing
-X = pipeline.fit_transform(df)
-print(f"Processed data shape: {X.shape}")
+# Remove highly correlated features ( > 0.9 )
+corr = vt.corr().abs()
+upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+to_drop = [column for column in upper.columns if any(upper[column] > 0.9)]
+df_final = vt.drop(columns=to_drop)
 
-# ---------- Clustering ----------
+# --------------------------
+# SCALE DATA
+# --------------------------
+scaler = StandardScaler()
+X = scaler.fit_transform(df_final)
 
-# 1. K-means
-kmeans = KMeans(n_clusters=3, n_init=10, random_state=42)
-kmeans_labels = kmeans.fit_predict(X)
+# --------------------------
+# 4. CLUSTERING ALGORITHMS
+# --------------------------
 
-# 2. GMM
-gmm = GaussianMixture(n_components=3, random_state=42)
-gmm_labels = gmm.fit_predict(X)
+# ---- K-Means ----
+kmeans = KMeans(n_clusters=3, random_state=0)
+labels_kmeans = kmeans.fit_predict(X)
 
-# 3. Hierarchical clustering on PCA-reduced data
-# Safe PCA reduction
-max_samples = 5000
-if X.shape[0] > max_samples:
-    sample_idx = np.random.choice(X.shape[0], size=max_samples, replace=False)
-    X_hier = X[sample_idx]
-else:
-    X_hier = X
+# ---- Gaussian Mixture ----
+gmm = GaussianMixture(n_components=3, random_state=0)
+labels_gmm = gmm.fit_predict(X)
 
-pca = PCA(n_components=20, random_state=42)
-X_hier_reduced = pca.fit_transform(X_hier)
-
+# ---- Hierarchical Clustering (Ward) ----
 hier = AgglomerativeClustering(n_clusters=3, linkage='ward')
-hier_labels = hier.fit_predict(X_hier_reduced)
+labels_hier = hier.fit_predict(X)
+# --------------------------
+# 5. EVALUATION METRICS
+# --------------------------
 
-# ---------- Evaluation Function ----------
-def evaluate_clustering_safe(X_eval, labels, algorithm_name, sample_size=5000):
-    n_samples = X_eval.shape[0]
-    if n_samples > sample_size:
-        idx = np.random.choice(n_samples, size=sample_size, replace=False)
-        X_eval_sample = X_eval[idx]
-        labels_sample = labels[idx]
+
+def evaluate(X, labels, name):
+    if len(set(labels)) > 1 and -1 not in set(labels):
+        sil = silhouette_score(X, labels)
+        ch = calinski_harabasz_score(X, labels)
     else:
-        X_eval_sample = X_eval
-        labels_sample = labels
+        sil = np.nan
+        ch = np.nan
 
-    sil = silhouette_score(X_eval_sample, labels_sample)
-    ch = calinski_harabasz_score(X_eval_sample, labels_sample)
-    db = davies_bouldin_score(X_eval_sample, labels_sample)
-    print(f"{algorithm_name}: Silhouette={sil:.4f}, Calinski-Harabasz={ch:.2f}, Davies-Bouldin={db:.4f}")
+    print(f"{name}:")
+    print(f"  Silhouette Score: {sil}")
+    print(f"  Calinski-Harabasz Score: {ch}")
+    print(f"  Unique Clusters: {set(labels)}\n")
 
 
-# Evaluate
-print("\nClustering evaluation:")
-evaluate_clustering_safe(X, kmeans_labels, "K-means")
-evaluate_clustering_safe(X, gmm_labels, "GMM")
-evaluate_clustering_safe(X_hier_reduced, hier_labels, "Hierarchical (PCA, sampled)")
+evaluate(X, labels_kmeans, "K-Means")
+evaluate(X, labels_gmm, "GMM")
+evaluate(X, labels_hier, "Hierarchical Clustering")
+
+
+# --------------------------
+# 6. VISUALIZATION (PCA 2D)
+# --------------------------
+
+
+# Reduce data to 2D for visualization
+pca = PCA(n_components=2)
+X_2D = pca.fit_transform(X)
+
+def plot_clusters(X2, labels, title):
+    plt.figure(figsize=(7, 5))
+    plt.scatter(X2[:, 0], X2[:, 1], c=labels, s=10)
+    plt.title(title)
+    plt.xlabel("PCA Component 1")
+    plt.ylabel("PCA Component 2")
+    plt.tight_layout()
+    plt.show()
+
+# Plot for each algorithm
+plot_clusters(X_2D, labels_kmeans, "K-Means Clusters (PCA 2D)")
+plot_clusters(X_2D, labels_gmm, "GMM Clusters (PCA 2D)")
+plot_clusters(X_2D, labels_hier, "Hierarchical Clusters (PCA 2D)")
